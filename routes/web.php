@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
 
@@ -17,6 +18,8 @@ use Illuminate\Support\Facades\Route;
 Route::get('/authorize', function () {
     return view('authorize');
 });
+
+Route::post('/payment',[PaymentController::class,'index'])->name('payment')->middleware('auth');
 
 Route::get('/', function () {
     return view('welcome');

@@ -27,11 +27,12 @@
             <option v-for="year in dynamicYears" :key="year" :value="year">{{ year }}</option>
           </select>
         </div>
-        <button type="submit" class="btn btn-primary">Submit</button>
+        <button type="submit" class="btn btn-primary" @click="submitForm">Submit</button>
     </div>
   </template>
 
   <script>
+  import axios  from "axios";
   export default {
     data() {
       return {
@@ -51,10 +52,25 @@
       return futureYears.map(String); // Convert years to strings
     }
     },
+    mounted() {
+    },
     methods: {
       submitForm() {
-        // You can perform form submission logic here
-        console.log('Form submitted:', this.cardNumber, this.cvv, this.expiryMonth, this.expiryYear);
+        const cardDetails = {
+        cardNumber: this.cardNumber,
+        cvv: this.cvv,
+        expiryMonth: this.expiryMonth,
+        expiryYear: this.expiryYear
+         };
+         axios.post('/payment', cardDetails)
+        .then(response => {
+          // Handle the response from the backend
+          console.log('Payment successful', response.data);
+        })
+        .catch(error => {
+          // Handle errors
+          console.error('Error making payment:', error.response.data);
+        });
       }
     }
   };
