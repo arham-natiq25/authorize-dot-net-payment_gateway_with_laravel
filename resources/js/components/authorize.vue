@@ -29,6 +29,26 @@
         </div>
         <button type="submit" class="btn btn-primary" @click="submitForm">Submit</button>
     </div>
+
+    <div>
+        <div class="row">
+            <div class="col-md-8">
+                <b><label>Select Card</label></b>
+
+                <div v-for="card in cards" :key="card.id">
+                    <input type="radio" :id="'card_' + card.id" name="selectedCard" class="m-2" :value="card" v-model="selectedCard">
+                    <label :for="'card_' + card.id" class="m-2">
+                        **** ****  {{ card.last_four_digit }}
+                        <span class="ms-5">{{ card.card_type }}</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="col-md-3 mt-4">
+                <button class="btn btn-success" @click="payWithCard">Pay</button>
+            </div>
+        </div>
+    </div>
   </template>
 
   <script>
@@ -41,7 +61,9 @@
         expiryMonth: '',
         expiryYear: '',
         months: ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12'],
-        years: ['2023', '2024', '2025', '2026', '2027', '2028', '2029', '2030']
+        years: ['2023', '2024', '2025', '2026', '2027', '2028', '2029', '2030'],
+        cards:[],
+        selectedCard:null
       };
 
     },
@@ -53,8 +75,24 @@
     }
     },
     mounted() {
+        this.getCards();
     },
     methods: {
+        payWithCard() {
+
+          const card = {
+           card: this.selectedCard
+        }
+        axios.post('/payment/card', card)
+          .then(response => {
+            // Handle the response from the backend
+            console.log('Payment successful', response.data);
+          })
+          .catch(error => {
+            // Handle errors
+            console.error('Error making payment:', error.response.data);
+          });
+    },
       submitForm() {
         const cardDetails = {
         cardNumber: this.cardNumber,
@@ -71,8 +109,14 @@
           // Handle errors
           console.error('Error making payment:', error.response.data);
         });
+      },
+      getCards(){
+        axios.get('/cards').then((res)=>{
+            this.cards = res.data
+        });
       }
-    }
+    },
+
   };
   </script>
 

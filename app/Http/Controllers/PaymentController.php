@@ -2,7 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\CustomerProfile;
+use App\Models\TransactionRecords;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use net\authorize\api\contract\v1 as AnetAPI;
 use net\authorize\api\controller as AnetController;
 
@@ -10,6 +13,8 @@ class PaymentController extends Controller
 {
     public function index(Request $request)
     {
+
+        $user = Auth::user();
         /* Create a merchantAuthenticationType object with authentication details
            retrieved from the constants file */
         $merchantAuthentication = new AnetAPI\MerchantAuthenticationType();
@@ -21,9 +26,9 @@ class PaymentController extends Controller
 
         // Create the payment data for a credit card
         $creditCard = new AnetAPI\CreditCardType();
-        $creditCard->setCardNumber("4111111111111111");
-        $creditCard->setExpirationDate("2038-12");
-        $creditCard->setCardCode("123");
+        $creditCard->setCardNumber("5424000000000015");
+        $creditCard->setExpirationDate("2032-02");
+        $creditCard->setCardCode("122");
 
         // Add the payment data to a paymentType object
         $paymentOne = new AnetAPI\PaymentType();
@@ -45,12 +50,24 @@ class PaymentController extends Controller
         $customerData = new AnetAPI\CustomerDataType();
         $customerData->setType("individual");
         $customerData->setId("99999456654"); // give own user id
-        $customerData->setEmail("EllenJohnson@example.com"); // user emial
+        $customerData->setEmail("EllenJohnson@anc.com"); // user emial
 
         // Add values for transaction settings
         $duplicateWindowSetting = new AnetAPI\SettingType();
         $duplicateWindowSetting->setSettingName("duplicateWindow");
         $duplicateWindowSetting->setSettingValue("60");
+
+        $billTo = new AnetAPI\CustomerAddressType();
+        $billTo->setFirstName("Ellen");
+        $billTo->setLastName("Johnson");
+        $billTo->setCompany("Souveniropolis");
+        $billTo->setAddress("14 Main Street");
+        $billTo->setCity("Pecan Springs");
+        $billTo->setState("TX");
+        $billTo->setZip("44628");
+        $billTo->setCountry("USA");
+        $billTo->setPhoneNumber("888-888-8888");
+        $billTo->setFaxNumber("999-999-9999");
 
         // Add some merchant defined fields. These fields won't be stored with the transaction,
         // but will be echoed back in the response.
@@ -63,65 +80,139 @@ class PaymentController extends Controller
         // $merchantDefinedField2->setValue("blue");
 
         // Create a TransactionRequestType object and add the previous objects to it
+
+
+
+        $paymentProfile = new AnetAPI\CustomerPaymentProfileType();
+        $paymentProfile->setCustomerType('individual');
+        $paymentProfile->setBillTo($billTo);
+        $paymentProfile->setPayment($paymentOne);
+        $paymentProfiles[] = $paymentProfile;
+
+        $customerProfile = new AnetAPI\CustomerProfileType();
+        $customerProfile->setDescription("  Test PHP");
+        $customerProfile->setMerchantCustomerId("M_" . time());
+        $customerProfile->setEmail("EllenJohnson@anc.com"); // Set the email for the customer
+        $customerProfile->setPaymentProfiles($paymentProfiles);
+
+        $request = new AnetAPI\CreateCustomerProfileRequest();
+        $request->setMerchantAuthentication($merchantAuthentication);
+        $request->setRefId($refId);
+        $request->setProfile($customerProfile);
+        $controller = new AnetController\CreateCustomerProfileController($request);
+        $response = $controller->executeWithApiResponse(\net\authorize\api\constants\ANetEnvironment::SANDBOX);
+
+
+
+        if ($response != null && $response->getMessages()->getResultCode() == "Ok") {
+            // here successfully get customer profile id
+            $customerProfileIDFromAuthorize = $response->getCustomerProfileId();
+            $paymentProfileId = $response->getCustomerPaymentProfileIdList()[0];
+        } else {
+            // Handle the case where the API request was not successful
+            $errorMessages = $response->getMessages()->getMessage();
+        }
+        $profileToCharge = new AnetAPI\CustomerProfilePaymentType();
+        $profileToCharge->setCustomerProfileId($customerProfileIDFromAuthorize);
+        $paymentProfile = new AnetAPI\PaymentProfileType();
+        $paymentProfile->setPaymentProfileId($paymentProfileId);
+        $profileToCharge->setPaymentProfile($paymentProfile);
+
         $transactionRequestType = new AnetAPI\TransactionRequestType();
         $transactionRequestType->setTransactionType("authCaptureTransaction");
-        $transactionRequestType->setAmount(100);
-        // $transactionRequestType->setOrder($order);
-        $transactionRequestType->setPayment($paymentOne);
-        $transactionRequestType->setBillTo($customerAddress);
-        $transactionRequestType->setCustomer($customerData);
-        $transactionRequestType->addToTransactionSettings($duplicateWindowSetting);
-        // $transactionRequestType->addToUserFields($merchantDefinedField1);
-        // $transactionRequestType->addToUserFields($merchantDefinedField2);
+        $transactionRequestType->setAmount(150);
+        $transactionRequestType->setProfile($profileToCharge);
 
-        // Assemble the complete transaction request
         $request = new AnetAPI\CreateTransactionRequest();
         $request->setMerchantAuthentication($merchantAuthentication);
         $request->setRefId($refId);
         $request->setTransactionRequest($transactionRequestType);
-
-        // Create the controller and get the response
         $controller = new AnetController\CreateTransactionController($request);
         $response = $controller->executeWithApiResponse(\net\authorize\api\constants\ANetEnvironment::SANDBOX);
 
-        dd($response);
+
+
+
+
         if ($response != null) {
-            // Check to see if the API request was successfully received and acted upon
             if ($response->getMessages()->getResultCode() == "Ok") {
-                // Since the API request was successful, look for a transaction response
-                // and parse it to display the results of authorizing the card
                 $tresponse = $response->getTransactionResponse();
+                $lastFourDigits = $tresponse->getAccountNumber();
+                $cardType = $tresponse->getAccountType();
+                $trx_id =  $tresponse->getTransId() . "\n";
 
-                if ($tresponse != null && $tresponse->getMessages() != null) {
-                    echo " Successfully created transaction with Transaction ID: " . $tresponse->getTransId() . "\n";
-                    echo " Transaction Response Code: " . $tresponse->getResponseCode() . "\n";
-                    echo " Message Code: " . $tresponse->getMessages()[0]->getCode() . "\n";
-                    echo " Auth Code: " . $tresponse->getAuthCode() . "\n";
-                    echo " Description: " . $tresponse->getMessages()[0]->getDescription() . "\n";
-                } else {
-                    echo "Transaction Failed \n";
-                    if ($tresponse->getErrors() != null) {
-                        echo " Error Code  : " . $tresponse->getErrors()[0]->getErrorCode() . "\n";
-                        echo " Error Message : " . $tresponse->getErrors()[0]->getErrorText() . "\n";
-                    }
-                }
-                // Or, print errors if the API request wasn't successful
-            } else {
-                echo "Transaction Failed \n";
-                $tresponse = $response->getTransactionResponse();
+                TransactionRecords::create([
+                    'user_id' => $user->id,
+                    'payment' => 100,
+                    'trx_id' => $trx_id
+                ]);
+                CustomerProfile::create([
+                    'user_id' => $user->id,
+                    'last_four_digit' => $lastFourDigits,
+                    'card_type' => $cardType,
+                    'customer_profile_id' => $customerProfileIDFromAuthorize,
+                    'payment_profile_id' => $paymentProfileId
 
-                if ($tresponse != null && $tresponse->getErrors() != null) {
-                    echo " Error Code  : " . $tresponse->getErrors()[0]->getErrorCode() . "\n";
-                    echo " Error Message : " . $tresponse->getErrors()[0]->getErrorText() . "\n";
-                } else {
-                    echo " Error Code  : " . $response->getMessages()->getMessage()[0]->getCode() . "\n";
-                    echo " Error Message : " . $response->getMessages()->getMessage()[0]->getText() . "\n";
-                }
+                ]);
             }
-        } else {
-            echo  "No response returned \n";
         }
 
-        return $response;
+        dd('success');
+
+
+
+    }
+
+    public function payWithCard(Request $request)
+    {
+
+        $user = Auth::user();
+
+        $merchantAuthentication = new AnetAPI\MerchantAuthenticationType();
+        $merchantAuthentication->setName(env('AUTHORIZENET_API_LOGIN_ID'));
+        $merchantAuthentication->setTransactionKey(env('AUTHORIZENET_TRANSACTION_KEY'));
+
+        $customerProfileId = $request->card['customer_profile_id'];
+        $lastFourDigits = $request->card['last_four_digit'];
+        $user_id = $request->card['user_id'];
+        $card_type = $request->card['card_type'];
+        $paymentProfileId = $request->card['payment_profile_id'];
+
+        $refId = 'ref' . time();
+
+        $profileToCharge = new AnetAPI\CustomerProfilePaymentType();
+        $profileToCharge->setCustomerProfileId($customerProfileId);
+        $paymentProfile = new AnetAPI\PaymentProfileType();
+        $paymentProfile->setPaymentProfileId($paymentProfileId);
+        $profileToCharge->setPaymentProfile($paymentProfile);
+
+        $transactionRequestType = new AnetAPI\TransactionRequestType();
+        $transactionRequestType->setTransactionType("authCaptureTransaction");
+        $transactionRequestType->setAmount(240);
+        $transactionRequestType->setProfile($profileToCharge);
+
+        $request = new AnetAPI\CreateTransactionRequest();
+        $request->setMerchantAuthentication($merchantAuthentication);
+        $request->setRefId($refId);
+        $request->setTransactionRequest($transactionRequestType);
+        $controller = new AnetController\CreateTransactionController($request);
+        $response = $controller->executeWithApiResponse(\net\authorize\api\constants\ANetEnvironment::SANDBOX);
+
+
+        dd($response);
+
+
+        if ($response != null) {
+            if ($response->getMessages()->getResultCode() == "Ok") {
+                $tresponse = $response->getTransactionResponse();
+                $trx_id =  $tresponse->getTransId() . "\n";
+
+                TransactionRecords::create([
+                    'user_id' => $user->id,
+                    'payment' => 240,
+                    'trx_id' => $trx_id
+                ]);
+            }
+        }
     }
 }

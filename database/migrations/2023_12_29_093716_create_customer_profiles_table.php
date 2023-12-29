@@ -11,8 +11,12 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('payment_details', function (Blueprint $table) {
+        Schema::create('customer_profiles', function (Blueprint $table) {
             $table->id();
+            $table->unsignedBigInteger('user_id');
+            $table->string('last_four_digit');
+            $table->string('card_type');
+            $table->string('customer_profile_id');
             $table->timestamps();
         });
     }
@@ -22,6 +26,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('payment_details');
+        Schema::dropIfExists('customer_profiles');
     }
 };

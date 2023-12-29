@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\GetCardsOfCustomerController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
@@ -20,7 +21,9 @@ Route::get('/authorize', function () {
 });
 
 Route::post('/payment',[PaymentController::class,'index'])->name('payment')->middleware('auth');
+Route::post('/payment/card',[PaymentController::class,'payWithCard'])->name('payment-card')->middleware('auth');
 
+Route::get('/cards',[GetCardsOfCustomerController::class,'getCards'])->name('card')->middleware('auth');
 Route::get('/', function () {
     return view('welcome');
 });
