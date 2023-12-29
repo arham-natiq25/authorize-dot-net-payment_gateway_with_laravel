@@ -1,6 +1,15 @@
 <!-- CardForm.vue -->
 
 <template>
+    <div v-if="successMessage" class="alert alert-success" role="alert">
+        {{ successMessage }}
+      </div>
+
+      <!-- Bootstrap alert for error -->
+      <div v-if="errorMessage" class="alert alert-danger" role="alert">
+        {{ errorMessage }}
+      </div>
+
     <div class="col-md-6">
         <div class="mb-3">
           <label for="cardNumber" class="form-label">Card Number</label>
@@ -63,7 +72,9 @@
         months: ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12'],
         years: ['2023', '2024', '2025', '2026', '2027', '2028', '2029', '2030'],
         cards:[],
-        selectedCard:null
+        selectedCard:null,
+        successMessage: null,
+      errorMessage: null,
       };
 
     },
@@ -80,20 +91,28 @@
     methods: {
         payWithCard() {
 
+        this.successMessage = null;
+        this.errorMessage = null;
           const card = {
-           card: this.selectedCard
+           card: this.selectedCard,
         }
         axios.post('/payment/card', card)
           .then(response => {
             // Handle the response from the backend
-            console.log('Payment successful', response.data);
+            this.successMessage = 'Backend Response ' + response.data.message;
           })
           .catch(error => {
             // Handle errors
-            console.error('Error making payment:', error.response.data);
+            this.errorMessage =
+            'Error making payment: ' +
+            (error.response.data.error
+              ? error.response.data.error[0].text
+              : 'An unexpected error occurred.');
           });
     },
       submitForm() {
+        this.successMessage = null;
+      this.errorMessage = null;
         const cardDetails = {
         cardNumber: this.cardNumber,
         cvv: this.cvv,
@@ -102,12 +121,14 @@
          };
          axios.post('/payment', cardDetails)
         .then(response => {
-          // Handle the response from the backend
-          console.log('Payment successful', response.data);
+            this.successMessage = 'Payment successful: ' + response.message;
         })
         .catch(error => {
-          // Handle errors
-          console.error('Error making payment:', error.response.data);
+            this.errorMessage =
+            'Error making payment: ' +
+            (error.response.data.error
+              ? error.response.data.error[0].text
+              : 'An unexpected error occurred.');
         });
       },
       getCards(){
